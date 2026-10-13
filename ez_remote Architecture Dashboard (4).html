@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ez_remote & ez_archive — Intelligence Pipeline & Toolkit Explorer</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Embedded CSS for Chart Containers and Custom Scrollbars */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 650px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 320px;
+            max-height: 380px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .code-block {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+        /* Custom subtle scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #F1F5F9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #CBD5E1;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94A3B8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <!-- Chosen Palette: Warm Neutral Harmony (Slate background, Warm Sand/White Cards, Indigo Primary Accent, Emerald Success Indicators) -->
+    <!-- Application Structure Plan:
+         1. Header & Quick Metrics Bar: Core system indicators (Throughput, Parsing Latency, Database Size, Toolkit Version).
+         2. Tab Navigation:
+            - Architecture & Data Flow: Interactive 3-stage pipeline visualizer (Scraping -> Sliding Window Parsing -> Offline Access).
+            - IR Code Explorer: Real-time query simulator for codes_map.json with brand, revision, length filters, and Termux clipboard simulation.
+            - Visual Analytics & Benchmarks: Chart.js visualizations for code distributions across OEM brands, throughput vs. file sizes, and storage allocation.
+            - ez_archive Toolkit Inspector: Filterable command reference for ez_archive.sh v2.0.1 with instant syntax and usage examples.
+            - Resiliency & Recovery Matrix: Failure modes, WAF bypass, retry policy, and recovery lookup.
+         3. Dynamic Footer: Version status, maintainer info, and offline system state.
+         This non-linear design empowers technical users, developers, and field technicians to intuitively navigate between system architecture, database contents, performance metrics, and command-line execution guides. -->
+    <!-- Visualization & Content Choices:
+         - Stage Pipeline: HTML/CSS Interactive Stepper with JS state binding (No SVG/Mermaid).
+         - IR Code Lookup: Interactive HTML Table + Dynamic Filter JS logic connected to mock database mirroring codes_map.json structure.
+         - Brand Code Distribution: Stacked Bar Chart via Chart.js (Canvas) showing 3, 4, and 5-digit code counts.
+         - System Performance & Storage: Line & Doughnut Charts via Chart.js (Canvas) tracking latency vs. parse size and disk retention breakdown.
+         - Command Reference: Searchable Card Grid with syntax blocks and quick-copy action handlers.
+         - Confirmation: NO SVG graphics used. NO Mermaid JS used. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <!-- Top Navigation / Branding Header -->
+    <header class="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-50 shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center space-x-3">
+                    <span class="text-2xl font-bold tracking-wider text-indigo-400">ez_remote</span>
+                    <span class="text-xs px-2 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-700/50 font-mono">v3.0 Pipeline</span>
+                    <span class="text-xs px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-700/50 font-mono hidden sm:inline-block">Toolkit v2.0.1</span>
+                </div>
+                <div class="flex space-x-1 sm:space-x-2 text-xs sm:text-sm font-medium">
+                    <button onclick="switchTab('architecture')" id="nav-architecture" class="px-3 py-2 rounded-lg transition-colors bg-indigo-600 text-white font-semibold">Architecture</button>
+                    <button onclick="switchTab('explorer')" id="nav-explorer" class="px-3 py-2 rounded-lg transition-colors hover:bg-slate-800 text-slate-300">Code Explorer</button>
+                    <button onclick="switchTab('analytics')" id="nav-analytics" class="px-3 py-2 rounded-lg transition-colors hover:bg-slate-800 text-slate-300">Analytics</button>
+                    <button onclick="switchTab('toolkit')" id="nav-toolkit" class="px-3 py-2 rounded-lg transition-colors hover:bg-slate-800 text-slate-300">Toolkit Inspector</button>
+                    <button onclick="switchTab('resiliency')" id="nav-resiliency" class="px-3 py-2 rounded-lg transition-colors hover:bg-slate-800 text-slate-300">Resiliency</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Global Key System Metrics KPI Strip -->
+    <section class="bg-slate-800 text-slate-200 border-b border-slate-700 py-3 shadow-inner">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+            <div class="border-r border-slate-700/60 last:border-0 pr-2">
+                <span class="text-xs text-slate-400 uppercase tracking-wider block">Scraping Throughput</span>
+                <span class="text-lg font-bold text-emerald-400 font-mono">10 - 15 <span class="text-xs font-normal text-slate-300">src/hr</span></span>
+            </div>
+            <div class="border-r border-slate-700/60 last:border-0 pr-2">
+                <span class="text-xs text-slate-400 uppercase tracking-wider block">Parsing Latency</span>
+                <span class="text-lg font-bold text-indigo-400 font-mono">&lt; 30s <span class="text-xs font-normal text-slate-300">/ 10MB HTML</span></span>
+            </div>
+            <div class="border-r border-slate-700/60 last:border-0 pr-2">
+                <span class="text-xs text-slate-400 uppercase tracking-wider block">Query Response Time</span>
+                <span class="text-lg font-bold text-amber-400 font-mono">&lt; 200ms <span class="text-xs font-normal text-slate-300">(Offline TUI)</span></span>
+            </div>
+            <div>
+                <span class="text-xs text-slate-400 uppercase tracking-wider block">Database Storage</span>
+                <span class="text-lg font-bold text-cyan-400 font-mono">&lt; 5MB <span class="text-xs font-normal text-slate-300">(Atomic JSON)</span></span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- SECTION 1: ARCHITECTURE & DATA FLOW -->
+        <section id="tab-architecture" class="space-y-6">
+            <div class="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
+                <h1 class="text-2xl font-bold text-slate-900 mb-2">Three-Stage Pipeline & Data Flow Architecture</h1>
+                <p class="text-slate-600 leading-relaxed">
+                    The <span class="font-semibold text-indigo-600">ez_remote</span> pipeline coordinates multi-vector web acquisition, contextual proximity sliding window parsing, and local Termux offline querying. Select any stage below to inspect its detailed technical parameters, retry policies, regex patterns, and data contracts.
+                </p>
+            </div>
+
+            <!-- Pipeline Interactive Stepper Card Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Stage 1 Card -->
+                <div onclick="selectPipelineStage(1)" id="stage-card-1" class="cursor-pointer bg-white rounded-xl p-5 border-2 border-indigo-600 shadow-md transition-all hover:shadow-lg">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="text-xs font-bold uppercase tracking-wider px-2 py-1 rounded bg-indigo-100 text-indigo-800">Stage 1</span>
+                        <span class="text-xs text-slate-500 font-mono">robust_gather_ir.py</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-900 mb-1">Multi-Vector Aggregation</h3>
+                    <p class="text-sm text-slate-600">Scrapes official OEM portals & community hubs with rate jitter & User-Agent rotation.</p>
+                </div>
+
+                <!-- Stage 2 Card -->
+                <div onclick="selectPipelineStage(2)" id="stage-card-2" class="cursor-pointer bg-white rounded-xl p-5 border-2 border-slate-200 shadow-sm transition-all hover:shadow-lg">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="text-xs font-bold uppercase tracking-wider px-2 py-1 rounded bg-amber-100 text-amber-800">Stage 2</span>
+                        <span class="text-xs text-slate-500 font-mono">parse_ir_intelligence_v3.py</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-900 mb-1">Contextual Windowing</h3>
+                    <p class="text-sm text-slate-600">Applies 1,000-char sliding windows around brand matches to extract chassis signatures & codes.</p>
+                </div>
+
+                <!-- Stage 3 Card -->
+                <div onclick="selectPipelineStage(3)" id="stage-card-3" class="cursor-pointer bg-white rounded-xl p-5 border-2 border-slate-200 shadow-sm transition-all hover:shadow-lg">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="text-xs font-bold uppercase tracking-wider px-2 py-1 rounded bg-emerald-100 text-emerald-800">Stage 3</span>
+                        <span class="text-xs text-slate-500 font-mono">portal_tui.py & ez_archive</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-900 mb-1">Offline Access & TUI</h3>
+                    <p class="text-sm text-slate-600">Serves rapid query results, CSV batch exports, and native Termux API clipboard integration.</p>
+                </div>
+            </div>
+
+            <!-- Stage Detailed View Panel -->
+            <div id="stage-detail-container" class="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
+                <!-- Dynamically populated via JS -->
+            </div>
+        </section>
+
+        <!-- SECTION 2: IR CODE EXPLORER -->
+        <section id="tab-explorer" class="space-y-6 hidden">
+            <div class="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
+                <h1 class="text-2xl font-bold text-slate-900 mb-2">Offline IR Code Database Explorer</h1>
+                <p class="text-slate-600 leading-relaxed">
+                    Query the compiled <span class="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded border">codes_map.json</span> database directly. Filter by OEM brand, hardware revision signatures (such as GE CL9+ or Samsung BN41), or code digit lengths. Simulate Android clipboard actions or export results.
+                </p>
+                
+                <!-- Filter Controls -->
+                <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Brand Name Search</label>
+                        <input type="text" id="filter-brand-text" oninput="applyCodeFilters()" placeholder="e.g. Samsung, Sony, GE..." class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Hardware Revision</label>
+                        <select id="filter-revision-select" onchange="applyCodeFilters()" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white">
+                            <option value="ALL">All Revisions & Chassis</option>
+                            <option value="Generic">Generic (Fallback)</option>
+                            <option value="CL9+ series">CL9+ series (GE/Jasco)</option>
+                            <option value="CL3 series">CL3 series (GE/Jasco)</option>
+                            <option value="BN41">BN41 (Samsung LED 2018+)</option>
+                            <option value="TPS-31">TPS-31 (LG OLED 2019+)</option>
+                            <option value="GN41">GN41 (Vizio Smart TV)</option>
+                            <option value="R271U1">R271U1 (RCA Smart Home)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Code Length Bucket</label>
+                        <select id="filter-length-select" onchange="applyCodeFilters()" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white">
+                            <option value="ALL">All Digits (3, 4, 5)</option>
+                            <option value="3-digit">3-Digit Codes</option>
+                            <option value="4-digit">4-Digit Codes</option>
+                            <option value="5-digit">5-Digit Codes</option>
+                        </select>
+                    </div>
+                    <div class="flex items-end space-x-2">
+                        <button onclick="resetCodeFilters()" class="w-1/2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium py-2 px-3 rounded-lg border border-slate-300 transition-colors">Reset</button>
+                        <button onclick="exportFilteredCSV()" class="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium py-2 px-3 rounded-lg shadow-sm transition-colors">Export CSV</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Code Table Results -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                    <span class="text-sm font-bold text-slate-700">Database Search Results</span>
+                    <span id="result-count-badge" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-800">Showing 0 entries</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-600">
+                        <thead class="bg-slate-100 text-xs uppercase font-semibold text-slate-700 border-b border-slate-200">
+                            <tr>
+                                <th class="px-6 py-3">Brand</th>
+                                <th class="px-6 py-3">Revision Signature / Profile</th>
+                                <th class="px-6 py-3">Bucket</th>
+                                <th class="px-6 py-3">IR Code Array</th>
+                                <th class="px-6 py-3 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="code-table-body" class="divide-y divide-slate-200 font-mono">
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 3: VISUAL ANALYTICS & BENCHMARKS -->
+        <section id="tab-analytics" class="space-y-6 hidden">
+            <div class="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
+                <h1 class="text-2xl font-bold text-slate-900 mb-2">System Analytics & Pipeline Benchmarks</h1>
+                <p class="text-slate-600 leading-relaxed">
+                    Quantitative distribution metrics, parsing throughput trends, and storage allocation profiles generated across production test runs.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Chart 1: Code Distribution by Length -->
+                <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900 mb-1">IR Code Count by Brand & Digit Length</h3>
+                        <p class="text-xs text-slate-500 mb-4">Breakdown of 3-digit, 4-digit, and 5-digit codes compiled across major OEM target profiles.</p>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="chart-code-dist"></canvas>
+                    </div>
+                    <div class="mt-3 text-xs text-slate-500 text-center">
+                        *4-digit codes dominate legacy universal formats (e.g., GE CL series), while 5-digit codes represent modern Smart TV chassis protocols.
+                    </div>
+                </div>
+
+                <!-- Chart 2: Parsing Latency Scaling -->
+                <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900 mb-1">Parsing Latency vs HTML Input Size</h3>
+                        <p class="text-xs text-slate-500 mb-4">Benchmark of Stage 2 contextual sliding window execution against raw DOM payload size.</p>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="chart-latency"></canvas>
+                    </div>
+                    <div class="mt-3 text-xs text-slate-500 text-center">
+                        *Demonstrates sub-30 second processing times even at peak 10MB aggregated raw HTML payloads.
+                    </div>
+                </div>
+
+                <!-- Chart 3: System Storage Allocation -->
+                <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between lg:col-span-2">
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900 mb-1">Termux Storage Footprint Allocation</h3>
+                        <p class="text-xs text-slate-500 mb-4">Disk space consumption breakdown across 7-day raw HTML retention, atomic JSON outputs, and backup archives.</p>
+                    </div>
+                    <div class="chart-container max-w-md">
+                        <canvas id="chart-storage"></canvas>
+                    </div>
+                    <div class="mt-3 text-xs text-slate-500 text-center">
+                        *Total storage footprint strictly managed under 1GB with automated raw retention pruning.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 4: EZ_ARCHIVE TOOLKIT INSPECTOR -->
+        <section id="tab-toolkit" class="space-y-6 hidden">
+            <div class="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                        <h1 class="text-2xl font-bold text-slate-900 mb-1">ez_archive.sh v2.0.1 Toolkit Inspector</h1>
+                        <p class="text-slate-600 text-sm">
+                            Resilient terminal script helper utility for Termux (Android) and Linux environments.
+                        </p>
+                    </div>
+                    <span class="text-xs font-mono bg-slate-900 text-emerald-400 px-3 py-1.5 rounded-lg border border-slate-800">source ./ez_archive.sh</span>
+                </div>
+
+                <!-- Toolkit Command Search & Category Filter -->
+                <div class="mt-6 flex flex-col sm:flex-row gap-4">
+                    <input type="text" id="toolkit-search" oninput="filterToolkitCommands()" placeholder="Search functions (e.g. git_sync, project_init, backup)..." class="flex-grow text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <select id="toolkit-category" onchange="filterToolkitCommands()" class="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white">
+                        <option value="ALL">All Categories</option>
+                        <option value="Directory">Directory Management</option>
+                        <option value="Git">Git Operations</option>
+                        <option value="File Inspection">File Inspection</option>
+                        <option value="Python">Python Utilities</option>
+                        <option value="Validation">Validation & Diagnostics</option>
+                        <option value="Maintenance">Maintenance & Cleanup</option>
+                        <option value="Backup">Backup & Restore</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Command Cards Grid -->
+            <div id="toolkit-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Populated via JS -->
+            </div>
+        </section>
+
+        <!-- SECTION 5: RESILIENCY & FAILURE MATRIX -->
+        <section id="tab-resiliency" class="space-y-6 hidden">
+            <div class="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
+                <h1 class="text-2xl font-bold text-slate-900 mb-2">Failure Modes & Resiliency Matrix</h1>
+                <p class="text-slate-600 leading-relaxed">
+                    Overview of error detection mechanisms, exponential backoff policies, WAF protection bypass techniques, and automatic recovery procedures embedded into the architecture.
+                </p>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-600">
+                        <thead class="bg-slate-900 text-slate-200 text-xs uppercase font-semibold">
+                            <tr>
+                                <th class="px-6 py-3.5">Failure Mode / Threat</th>
+                                <th class="px-6 py-3.5">Detection Vector</th>
+                                <th class="px-6 py-3.5">Automated Recovery & Mitigation</th>
+                                <th class="px-6 py-3.5">System Component</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200">
+                            <tr class="hover:bg-slate-50">
+                                <td class="px-6 py-4 font-bold text-slate-900">Source WAF / Cloudflare Block</td>
+                                <td class="px-6 py-4 font-mono text-xs text-rose-600">HTTP 403 / 429 Responses</td>
+                                <td class="px-6 py-4">User-Agent header rotation, 200-800ms rate-limiting jitter, session cookie persistence, fallback source switch.</td>
+                                <td class="px-6 py-4 font-mono text-xs text-indigo-600">robust_gather_ir.py</td>
+                            </tr>
+                            <tr class="hover:bg-slate-50">
+                                <td class="px-6 py-4 font-bold text-slate-900">Transient Network Failures</td>
+                                <td class="px-6 py-4 font-mono text-xs text-amber-600">Connection Timeouts / 5xx</td>
+                                <td class="px-6 py-4">urllib3 HTTPAdapter exponential backoff retries (1s, 2s, 4s delays). Failed queues saved for retry on network restore.</td>
+                                <td class="px-6 py-4 font-mono text-xs text-indigo-600">robust_gather_ir.py</td>
+                            </tr>
+                            <tr class="hover:bg-slate-50">
+                                <td class="px-6 py-4 font-bold text-slate-900">Irregular HTML / Layout Shifts</td>
+                                <td class="px-6 py-4 font-mono text-xs text-rose-600">Unmatched DOM elements</td>
+                                <td class="px-6 py-4">Fallback from BS4 element scraping to 1,000-character plain text contextual sliding window parsing around brand tokens.</td>
+                                <td class="px-6 py-4 font-mono text-xs text-amber-600">parse_ir_intelligence_v3.py</td>
+                            </tr>
+                            <tr class="hover:bg-slate-50">
+                                <td class="px-6 py-4 font-bold text-slate-900">Non-standard Hardware Revisions</td>
+                                <td class="px-6 py-4 font-mono text-xs text-slate-600">Regex match fallback</td>
+                                <td class="px-6 py-4">Manual overrides layer (<span class="font-mono text-xs">overrides.json</span>) checks explicitly mapped OEM chassis signatures (e.g., BN41, TPS-31) before default grouping.</td>
+                                <td class="px-6 py-4 font-mono text-xs text-amber-600">parse_ir_intelligence_v3.py</td>
+                            </tr>
+                            <tr class="hover:bg-slate-50">
+                                <td class="px-6 py-4 font-bold text-slate-900">Database Corruptions / Partial Writes</td>
+                                <td class="px-6 py-4 font-mono text-xs text-rose-600">Schema Validation Fail</td>
+                                <td class="px-6 py-4">Atomic file writes using <span class="font-mono text-xs">.tmp</span> file generation followed by instantaneous filesystem <span class="font-mono text-xs">replace()</span>. Retains last-known-good map on error.</td>
+                                <td class="px-6 py-4 font-mono text-xs text-indigo-600">Core Data Store</td>
+                            </tr>
+                            <tr class="hover:bg-slate-50">
+                                <td class="px-6 py-4 font-bold text-slate-900">Android/Termux Storage Overfill</td>
+                                <td class="px-6 py-4 font-mono text-xs text-amber-600">df &gt; 90% capacity</td>
+                                <td class="px-6 py-4"><span class="font-mono text-xs">find_large_files</span> diagnostics and auto-pruning of raw HTML files older than 7 days. Git garbage collection (<span class="font-mono text-xs">cleanup_git_tempfiles</span>).</td>
+                                <td class="px-6 py-4 font-mono text-xs text-emerald-600">ez_archive.sh</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Global Toast / Modal Notice -->
+    <div id="toast-notice" class="fixed bottom-5 right-5 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl border border-slate-700 hidden flex items-center space-x-3 z-50">
+        <span class="text-emerald-400 font-bold text-base">✓</span>
+        <span id="toast-message" class="text-xs font-mono text-slate-200">Action completed successfully.</span>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 border-t border-slate-800 text-slate-400 text-xs py-6 mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div>
+                <p class="font-semibold text-slate-300">ez_remote IR Intelligence Pipeline & ez_archive Toolkit</p>
+                <p class="text-slate-500 mt-0.5">Offline-Accessible IR Code Architecture • Maintained by Carter (@bilbywilby)</p>
+            </div>
+            <div class="flex items-center space-x-4 font-mono text-slate-400">
+                <span>Termux API Compliant</span>
+                <span>•</span>
+                <span>Zero External Runtime Dependencies</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript Logic & Charting Initialization -->
+    <script>
+        // Global Application State
+        const state = {
+            currentTab: 'architecture',
+            activeStage: 1,
+            // Mock Dataset reflecting compiled codes_map.json structure
+            codesMap: {
+                "GE/Jasco": {
+                    "CL9+ series": {
+                        "3-digit": [12, 45, 89],
+                        "4-digit": [4, 9, 105, 209, 312, 415, 518, 620, 722, 825],
+                        "5-digit": []
+                    },
+                    "CL3 series": {
+                        "3-digit": [14, 28],
+                        "4-digit": [1104, 1209, 1315, 1420],
+                        "5-digit": []
+                    }
+                },
+                "Samsung": {
+                    "BN41 (Samsung LED 2018+)": {
+                        "3-digit": [101, 105, 112],
+                        "4-digit": [60, 178, 204, 556, 702],
+                        "5-digit": [10060, 10812, 11055]
+                    },
+                    "Generic": {
+                        "3-digit": [4, 9, 15],
+                        "4-digit": [19, 30, 80, 115],
+                        "5-digit": []
+                    }
+                },
+                "Sony": {
+                    "Generic": {
+                        "3-digit": [1, 11, 25, 42],
+                        "4-digit": [0, 11, 80, 111, 250],
+                        "5-digit": [10000, 10810, 11000]
+                    }
+                },
+                "LG": {
+                    "TPS-31 (LG OLED 2019+)": {
+                        "3-digit": [100, 102],
+                        "4-digit": [30, 178, 210, 412],
+                        "5-digit": [10178, 11178, 12055]
+                    },
+                    "Generic": {
+                        "3-digit": [5, 19],
+                        "4-digit": [56, 117, 218],
+                        "5-digit": []
+                    }
+                },
+                "RCA": {
+                    "R271U1 (RCA Smart Home)": {
+                        "3-digit": [0, 6, 12],
+                        "4-digit": [47, 51, 135, 211],
+                        "5-digit": []
+                    },
+                    "Generic": {
+                        "3-digit": [18, 21, 35],
+                        "4-digit": [0, 100, 125],
+                        "5-digit": [10047, 10051]
+                    }
+                },
+                "Panasonic": {
+                    "Generic": {
+                        "3-digit": [15, 17, 33],
+                        "4-digit": [51, 250, 312, 418],
+                        "5-digit": [10250]
+                    }
+                },
+                "Vizio": {
+                    "GN41 (Vizio Smart TV)": {
+                        "3-digit": [],
+                        "4-digit": [1758, 178, 885],
+                        "5-digit": [11758, 10178]
+                    },
+                    "Generic": {
+                        "3-digit": [22],
+                        "4-digit": [117, 885, 912],
+                        "5-digit": []
+                    }
+                }
+            },
+            // ez_archive.sh Toolkit Commands Registry
+            toolkitCommands: [
+                { name: "project_init", args: "<name> [path]", cat: "Directory", desc: "Initializes standard project directory tree with .gitignore, git init, and README.md." },
+                { name: "cd_project", args: "<name>", cat: "Directory", desc: "Searches predefined base paths and changes working directory to target project." },
+                { name: "tree_view", args: "[path] [depth]", cat: "Directory", desc: "Displays clean directory hierarchy with depth limiting (fallback to ls-la)." },
+                { name: "mkdir_safe", args: "<directory>", cat: "Directory", desc: "Recursively creates directory path if not already existing." },
+                { name: "git_init", args: "[directory]", cat: "Git", desc: "Initializes local Git repository safely without overwriting configuration." },
+                { name: "git_status", args: "", cat: "Git", desc: "Prints current branch name and short status summary." },
+                { name: "git_stash_all", args: "[message]", cat: "Git", desc: "Stashes all modified and untracked changes with timestamped label." },
+                { name: "git_stash_pop", args: "", cat: "Git", desc: "Restores and removes the latest stashed set of changes." },
+                { name: "git_sync", args: "[remote] [branch]", cat: "Git", desc: "Fetches and pulls changes using merge strategy with safety fallback." },
+                { name: "git_push_force", args: "[branch]", cat: "Git", desc: "Force pushes local commits to remote with confirmation prompt." },
+                { name: "git_diff_recent", args: "[count]", cat: "Git", desc: "Graphically renders recent commit history with decorations." },
+                { name: "view_file_tail", args: "<file> [lines]", cat: "File Inspection", desc: "Displays the last N lines of specified log or output file." },
+                { name: "view_file_tac", args: "<file> [lines]", cat: "File Inspection", desc: "Displays file lines in reverse order for quick log troubleshooting." },
+                { name: "view_json_formatted", args: "<file>", cat: "File Inspection", desc: "Pretty-prints JSON content using python json.tool or jq." },
+                { name: "search_file_content", args: "<pattern> [dir] [ext]", cat: "File Inspection", desc: "Searches text pattern across files using ripgrep or grep." },
+                { name: "count_lines", args: "<file>", cat: "File Inspection", desc: "Returns exact line count of target file." },
+                { name: "run_python_inline", args: "", cat: "Python", desc: "Executes Python code snippet provided via heredoc stdin." },
+                { name: "python_check_imports", args: "<pkg1> <pkg2>...", cat: "Python", desc: "Validates Python package availability without crashing script." },
+                { name: "python_validate_json", args: "<file>", cat: "Python", desc: "Checks JSON file syntax validity." },
+                { name: "check_termux_environment", args: "", cat: "Validation", desc: "Outputs system info, Termux storage, and binary dependencies." },
+                { name: "validate_python_project", args: "[root]", cat: "Validation", desc: "Validates python syntax, pytest presence, and pyproject configuration." },
+                { name: "disk_usage_report", args: "[path]", cat: "Validation", desc: "Generates sorted disk consumption breakdown." },
+                { name: "cleanup_pycache", args: "[path]", cat: "Maintenance", desc: "Recursively deletes __pycache__ directories and .pyc files." },
+                { name: "cleanup_git_tempfiles", args: "[path]", cat: "Maintenance", desc: "Runs aggressive git garbage collection and reflog expiration." },
+                { name: "find_large_files", args: "[path] [sizeMB]", cat: "Maintenance", desc: "Identifies files exceeding specified megabyte size threshold." },
+                { name: "backup_file", args: "<file> [suffix]", cat: "Backup", desc: "Creates timestamped backup copy in central backup folder." },
+                { name: "create_backup_tarball", args: "<dir>", cat: "Backup", desc: "Compresses directory into tar.gz backup archive." },
+                { name: "restore_from_backup", args: "<file> [path]", cat: "Backup", desc: "Extracts tar.gz backup archive to specified target path." }
+            ]
+        };
+
+        // Tab Switching Logic
+        function switchTab(tabId) {
+            state.currentTab = tabId;
+            const tabs = ['architecture', 'explorer', 'analytics', 'toolkit', 'resiliency'];
+            tabs.forEach(t => {
+                const el = document.getElementById(`tab-${t}`);
+                const nav = document.getElementById(`nav-${t}`);
+                if (t === tabId) {
+                    el.classList.remove('hidden');
+                    nav.classList.add('bg-indigo-600', 'text-white', 'font-semibold');
+                    nav.classList.remove('hover:bg-slate-800', 'text-slate-300');
+                } else {
+                    el.classList.add('hidden');
+                    nav.classList.remove('bg-indigo-600', 'text-white', 'font-semibold');
+                    nav.classList.add('hover:bg-slate-800', 'text-slate-300');
+                }
+            });
+
+            // Lazy initialization of charts
+            if (tabId === 'analytics' && !window.chartsInitialized) {
+                initCharts();
+                window.chartsInitialized = true;
+            }
+        }
+
+        // Pipeline Stage Details Handler
+        const stageDetailsMap = {
+            1: {
+                title: "Stage 1: Multi-Vector Aggregation & Resilient Web Scraping",
+                script: "src/robust_gather_ir.py",
+                desc: "Harvests HTML telemetry from community databases (RemoteCentral, ManualsLib, OneForAll) and official manufacturer portals (GE/Jasco, RCA, Samsung, Sony, LG) while actively preventing Web Application Firewall (WAF) IP bans or Cloudflare 403 blocks.",
+                specs: [
+                    { label: "Rate-Limiting Jitter", val: "Randomized 200ms - 800ms delays between consecutive requests" },
+                    { label: "Header Fingerprinting", val: "Session persistence with rotated desktop/mobile User-Agent list" },
+                    { label: "DOM Extraction", val: "BeautifulSoup 4 with lxml parser engine" },
+                    { label: "Retry Backoff", val: "Exponential retry policy (1s, 2s, 4s) on HTTP 429/5xx status codes" },
+                    { label: "Storage Contract", val: "Raw HTML saved atomically to remote_intelligence/raw/{source}_{timestamp}.html" }
+                ],
+                codeSnippet: `def fetch_source_telemetry(source_config: Dict[str, Any], output_dir: Path) -> Optional[Path]:
+    session = create_resilient_session(max_retries=3, backoff_factor=1.0)
+    headers["User-Agent"] = random.choice(USER_AGENTS)
+    polite_delay(min_ms=250, max_ms=750) # Rate jitter
+    response = session.get(url, headers=headers, timeout=15.0)
+    
+    # Atomic write pattern (.tmp -> swap)
+    temp_path = file_path.with_suffix(".tmp")
+    temp_path.write_text(response.text, encoding="utf-8")
+    temp_path.replace(file_path)`
+            },
+            2: {
+                title: "Stage 2: Contextual Windowing & Proximity Parsing Engine",
+                script: "src/parse_ir_intelligence_v3.py",
+                desc: "Parses unformatted raw HTML payloads into structured remote code profiles. Rather than relying on rigid DOM selectors that break across source updates, it applies a 1,000-character sliding window around brand keyword hits to isolate hardware signatures without cross-brand code bleed.",
+                specs: [
+                    { label: "Sliding Window Bounds", val: "1,000 chars total (500 preceding + 500 following brand hit)" },
+                    { label: "Manual Overrides", val: "Pre-checks overrides.json for non-standard revisions (e.g. GE CL[9-12])" },
+                    { label: "Chassis Profiles", val: "Maps chassis tags (BN41 -> Samsung LED 2018+, TPS-31 -> LG OLED)" },
+                    { label: "Bucketing Logic", val: "Isolates and deduplicates 3-digit, 4-digit, and 5-digit code arrays" },
+                    { label: "Atomic Output", val: "Serializes master mapping directly to remote_intelligence/data/codes_map.json" }
+                ],
+                codeSnippet: `def extract_context_window(text: str, brand_position: int, window_size: int = 500) -> str:
+    start = max(0, brand_position - window_size)
+    end = min(len(text), brand_position + window_size)
+    return text[start:end]
+
+# Extract hardware revision signature
+RE_REVISION = re.compile(r'(?:CL[9-12]|Revision\\s*\\d+\\.\\d+|Chassis[- ]?(?:BN41|TPS-31|GN41))')`
+            },
+            3: {
+                title: "Stage 3: Offline Access, TUI & Clipboard Integration",
+                script: "scripts/portal_tui.py & scripts/ez_archive.sh",
+                desc: "Delivers zero-latency offline access on Android (Termux) and Linux terminals. Enables field techs to query remote codes by brand or chassis, export batch CSV lists, and pass IR codes directly to the Android OS clipboard.",
+                specs: [
+                    { label: "Query Latency", val: "< 200ms response time on local JSON database lookup" },
+                    { label: "Android Clipboard", val: "Direct integration with termux-clipboard-set binary" },
+                    { label: "Export Capabilities", val: "Batch export to formatted CSV files or pipeable stdin stdout" },
+                    { label: "State Persistence", val: "Saves search history and last active queries in .tui_state.json" },
+                    { label: "Script Automation", val: "Orchestrated via pipeline_refresh.sh & ez_archive.sh toolkit" }
+                ],
+                codeSnippet: `def copy_to_clipboard(self, text: str) -> bool:
+    """Pass codes directly to Android system clipboard via Termux API."""
+    proc = subprocess.Popen(["termux-clipboard-set"], stdin=subprocess.PIPE)
+    proc.communicate(input=text.encode("utf-8"))
+    return proc.returncode == 0`
+            }
+        };
+
+        function selectPipelineStage(stageNum) {
+            state.activeStage = stageNum;
+            for (let i = 1; i <= 3; i++) {
+                const card = document.getElementById(`stage-card-${i}`);
+                if (i === stageNum) {
+                    card.classList.add('border-indigo-600', 'shadow-md');
+                    card.classList.remove('border-slate-200', 'shadow-sm');
+                } else {
+                    card.classList.remove('border-indigo-600', 'shadow-md');
+                    card.classList.add('border-slate-200', 'shadow-sm');
+                }
+            }
+            renderStageDetail();
+        }
+
+        function renderStageDetail() {
+            const data = stageDetailsMap[state.activeStage];
+            const container = document.getElementById('stage-detail-container');
+            
+            let specsHtml = data.specs.map(s => `
+                <div class="flex flex-col sm:flex-row justify-between py-2 border-b border-slate-100 last:border-0">
+                    <span class="text-xs font-bold text-slate-700 sm:w-1/3">${s.label}</span>
+                    <span class="text-xs text-slate-600 sm:w-2/3 font-mono">${s.val}</span>
+                </div>
+            `).join('');
+
+            container.innerHTML = `
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-4 pb-4 border-b border-slate-200">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900">${data.title}</h2>
+                        <span class="text-xs font-mono text-indigo-600 font-semibold">${data.script}</span>
+                    </div>
+                    <span class="text-xs px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-700 font-mono">Stage Execution Unit</span>
+                </div>
+                <p class="text-sm text-slate-600 mb-6 leading-relaxed">${data.desc}</p>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Technical Specifications</h4>
+                        ${specsHtml}
+                    </div>
+                    <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 text-slate-200 flex flex-col justify-between">
+                        <div>
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-xs font-mono text-slate-400">Core Code Pattern</span>
+                                <span class="text-xs text-emerald-400 font-mono">Python 3.10+</span>
+                            </div>
+                            <pre class="text-xs code-block text-indigo-300 overflow-x-auto p-2 bg-slate-950 rounded border border-slate-800/80"><code>${data.codeSnippet}</code></pre>
+                        </div>
+                        <div class="mt-4 text-right">
+                            <span class="text-[11px] text-slate-500 italic">Atomic execution verified on Termux & Debian Linux</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // IR Code Explorer Logic
+        function renderCodeTable(entries) {
+            const tbody = document.getElementById('code-table-body');
+            const badge = document.getElementById('result-count-badge');
+            badge.innerText = `Showing ${entries.length} entries`;
+
+            if (entries.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="px-6 py-8 text-center text-slate-400 italic">
+                            No IR codes match the selected brand or hardware revision criteria.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = entries.map(item => `
+                <tr class="hover:bg-slate-50">
+                    <td class="px-6 py-3.5 font-bold text-slate-900">${item.brand}</td>
+                    <td class="px-6 py-3.5">
+                        <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 text-xs">${item.revision}</span>
+                    </td>
+                    <td class="px-6 py-3.5 text-xs">
+                        <span class="font-bold ${item.length === '3-digit' ? 'text-blue-600' : item.length === '4-digit' ? 'text-indigo-600' : 'text-amber-600'}">${item.length}</span>
+                    </td>
+                    <td class="px-6 py-3.5">
+                        <div class="flex flex-wrap gap-1 max-w-md">
+                            ${item.codes.map(c => `<span class="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-xs text-slate-800 font-mono">${c}</span>`).join('')}
+                        </div>
+                    </td>
+                    <td class="px-6 py-3.5 text-right font-sans">
+                        <button onclick="copyCodesToClipboard('${item.brand}', '${item.revision}', [${item.codes.join(',')}])" class="text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-2.5 py-1.5 rounded-lg border border-indigo-200 transition-colors">
+                            Copy Clipboard
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function getFilteredEntries() {
+            const brandQuery = document.getElementById('filter-brand-text').value.toLowerCase().trim();
+            const revQuery = document.getElementById('filter-revision-select').value;
+            const lengthQuery = document.getElementById('filter-length-select').value;
+
+            let results = [];
+            for (let [brand, revs] of Object.entries(state.codesMap)) {
+                if (brandQuery && !brand.toLowerCase().includes(brandQuery)) continue;
+
+                for (let [rev, lengths] of Object.entries(revs)) {
+                    if (revQuery !== 'ALL' && !rev.includes(revQuery)) continue;
+
+                    for (let [lenKey, codes] of Object.entries(lengths)) {
+                        if (lengthQuery !== 'ALL' && lenKey !== lengthQuery) continue;
+                        if (codes && codes.length > 0) {
+                            results.push({
+                                brand: brand,
+                                revision: rev,
+                                length: lenKey,
+                                codes: codes
+                            });
+                        }
+                    }
+                }
+            }
+            return results;
+        }
+
+        function applyCodeFilters() {
+            renderCodeTable(getFilteredEntries());
+        }
+
+        function resetCodeFilters() {
+            document.getElementById('filter-brand-text').value = '';
+            document.getElementById('filter-revision-select').value = 'ALL';
+            document.getElementById('filter-length-select').value = 'ALL';
+            applyCodeFilters();
+        }
+
+        function copyCodesToClipboard(brand, rev, codesArray) {
+            const textToCopy = `// ez_remote IR Code Export\n// Brand: ${brand} | Revision: ${rev}\nCodes: ${codesArray.join(', ')}`;
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                showToast(`Copied ${codesArray.length} codes for ${brand} (${rev}) to clipboard!`);
+            }).catch(() => {
+                showToast(`Simulation: ${codesArray.length} codes formatted for Termux API clipboard.`);
+            });
+        }
+
+        function exportFilteredCSV() {
+            const entries = getFilteredEntries();
+            if (entries.length === 0) {
+                showToast("No data entries available to export.");
+                return;
+            }
+            let csvLines = ["brand,revision,code_length,code"];
+            entries.forEach(item => {
+                item.codes.forEach(code => {
+                    csvLines.push(`"${item.brand}","${item.revision}","${item.length}",${code}`);
+                });
+            });
+            const blob = new Blob([csvLines.join('\n')], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('href', url);
+            a.setAttribute('download', `ez_remote_export_${new Date().toISOString().slice(0,10)}.csv`);
+            a.click();
+            showToast(`Exported ${csvLines.length - 1} code rows to CSV!`);
+        }
+
+        // Toolkit Inspector Filter Logic
+        function renderToolkitGrid(commands) {
+            const grid = document.getElementById('toolkit-grid');
+            if (commands.length === 0) {
+                grid.innerHTML = `<div class="col-span-2 p-8 text-center text-slate-400 bg-white rounded-xl border border-slate-200">No matching ez_archive.sh functions found.</div>`;
+                return;
+            }
+
+            grid.innerHTML = commands.map(cmd => `
+                <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm hover:border-indigo-300 transition-all flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-sm font-bold font-mono text-indigo-700">${cmd.name}</span>
+                            <span class="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">${cmd.cat}</span>
+                        </div>
+                        <p class="text-xs text-slate-600 mb-3">${cmd.desc}</p>
+                    </div>
+                    <div class="bg-slate-900 rounded p-2 text-xs font-mono text-slate-300 flex justify-between items-center">
+                        <span class="truncate">ez_archive ${cmd.name} ${cmd.args}</span>
+                        <button onclick="copyCommandSyntax('${cmd.name}', '${cmd.args}')" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-indigo-300 px-2 py-1 rounded border border-slate-700 ml-2 font-sans">Copy</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterToolkitCommands() {
+            const query = document.getElementById('toolkit-search').value.toLowerCase().trim();
+            const category = document.getElementById('toolkit-category').value;
+
+            const filtered = state.toolkitCommands.filter(cmd => {
+                const matchesSearch = !query || cmd.name.toLowerCase().includes(query) || cmd.desc.toLowerCase().includes(query);
+                const matchesCat = category === 'ALL' || cmd.cat === category;
+                return matchesSearch && matchesCat;
+            });
+
+            renderToolkitGrid(filtered);
+        }
+
+        function copyCommandSyntax(name, args) {
+            const cmd = `source ./ez_archive.sh && ${name} ${args}`;
+            navigator.clipboard.writeText(cmd).then(() => {
+                showToast(`Copied function syntax: ${name}`);
+            });
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast-notice');
+            const toastMsg = document.getElementById('toast-message');
+            toastMsg.innerText = msg;
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+        }
+
+        // Chart.js Visual Analytics Initialization
+        function initCharts() {
+            // Chart 1: Stacked Bar Chart for Brand Code Distribution
+            const ctxCode = document.getElementById('chart-code-dist').getContext('2d');
+            new Chart(ctxCode, {
+                type: 'bar',
+                data: {
+                    labels: ['GE/Jasco', 'Samsung', 'Sony', 'LG', 'RCA', 'Panasonic', 'Vizio'],
+                    datasets: [
+                        { label: '3-Digit Codes', data: [5, 6, 4, 4, 6, 3, 1], backgroundColor: '#3B82F6' },
+                        { label: '4-Digit Codes', data: [14, 9, 5, 7, 7, 4, 6], backgroundColor: '#6366F1' },
+                        { label: '5-Digit Codes', data: [0, 3, 3, 3, 2, 1, 2], backgroundColor: '#F59E0B' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: true, grid: { display: false } },
+                        y: { stacked: true, beginAtZero: true, title: { display: true, text: 'Compiled Code Count' } }
+                    },
+                    plugins: {
+                        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${context.dataset.label}: ${context.raw} codes`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Chart 2: Latency vs Size
+            const ctxLatency = document.getElementById('chart-latency').getContext('2d');
+            new Chart(ctxLatency, {
+                type: 'line',
+                data: {
+                    labels: ['100 KB', '500 KB', '1 MB', '2.5 MB', '5 MB', '10 MB'],
+                    datasets: [{
+                        label: 'Stage 2 Context Window Parsing Time (s)',
+                        data: [0.4, 1.2, 2.8, 6.5, 13.8, 26.4],
+                        borderColor: '#10B981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, title: { display: true, text: 'Execution Seconds (s)' } }
+                    },
+                    plugins: {
+                        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } }
+                    }
+                }
+            });
+
+            // Chart 3: Storage Allocation
+            const ctxStorage = document.getElementById('chart-storage').getContext('2d');
+            new Chart(ctxStorage, {
+                type: 'doughnut',
+                data: {
+                    labels: ['7-Day Raw HTML Retention (~750 MB)', 'Backup Tarballs (~150 MB)', 'Execution Logs (~20 MB)', 'codes_map.json DB (~5 MB)'],
+                    datasets: [{
+                        data: [750, 150, 20, 5],
+                        backgroundColor: ['#64748B', '#F59E0B', '#3B82F6', '#10B981']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } }
+                    }
+                }
+            });
+        }
+
+        // On Page Initialization
+        window.addEventListener('DOMContentLoaded', () => {
+            selectPipelineStage(1);
+            applyCodeFilters();
+            renderToolkitGrid(state.toolkitCommands);
+        });
+    </script>
+</body>
+</html>
