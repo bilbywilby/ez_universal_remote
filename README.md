@@ -1,6 +1,3 @@
-============================================================================
-​ez_archive.sh — Resilient & Reusable Terminal Toolkit for Termux/Linux
-​============================================================================
 ​Purpose: One-stop utility script for directory management, Git operations,
 ​file inspection, Python heredoc execution, validation, and debugging
 ​Author: Carter / bilbywilby
@@ -2177,4 +2174,3 @@ if __name__ == "__main__":
     overrides_file = Path("remote_intelligence/data/overrides.json")
     codes_map_file = Path("remote_intelligence/data/codes_map.json")
     process_raw_directory(raw_directory, overrides_file, codes_map_file)
-
